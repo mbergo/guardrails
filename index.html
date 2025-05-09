@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardrails in AI-Driven Data Queries Demo (Live API v2)</title>
+    <style>
+        /* ... (Keep existing CSS from the previous version, with minor adjustments if needed) ... */
+        :root {
+            --bg-color: #1e1e1e;
+            --sidebar-bg: #252526;
+            --content-bg: #1e1e1e;
+            --text-color: #d4d4d4;
+            --accent-color: #0e639c;
+            --border-color: #333333;
+            --input-bg: #3c3c3c;
+            --button-bg: #0e639c;
+            --button-text: #ffffff;
+            --hover-bg: #2a2d2e;
+            --active-bg: #094771;
+            --error-color: #d44c47;
+            --warning-color: #f0e68c;
+            --success-color: #4CAF50; /* Added success color */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            padding: 15px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-left {
+            width: 260px;
+        }
+
+        .sidebar-right {
+            width: 350px; /* Wider for new toggles */
+            border-left: 1px solid var(--border-color);
+            border-right: none;
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            font-size: 1em;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar ul li a { display: block; padding: 8px 10px; text-decoration: none; color: var(--text-color); border-radius: 4px; margin-bottom: 5px; font-size: 0.9em; }
+        .sidebar ul li a:hover { background-color: var(--hover-bg); }
+        .sidebar ul li a.active { background-color: var(--active-bg); color: var(--button-text); }
+
+        .main-content { flex-grow: 1; background-color: var(--content-bg); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .main-content h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+
+        .demo-area { flex-grow: 1; background-color: var(--sidebar-bg); padding: 15px; border-radius: 5px; border: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        .demo-area .controls { margin-bottom: 15px; }
+        .demo-area p, .demo-area pre { margin-bottom: 10px; }
+        .demo-area button { background-color: var(--button-bg); color: var(--button-text); border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px; margin-bottom: 10px; }
+        .demo-area button:hover { opacity: 0.9; }
+        .demo-area button:disabled { background-color: #555; cursor: not-allowed; }
+        .demo-area input[type="text"], .demo-area textarea, .demo-area select { width: calc(100% - 22px); padding: 10px; background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 10px; }
+        .demo-area textarea { min-height: 80px; resize: vertical; flex-grow: 1; }
+
+        .output-box { background-color: var(--bg-color); padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; margin-top: 10px; min-height: 100px; flex-grow: 1; overflow-y: auto; }
+        .output-box.error { border-left: 3px solid var(--error-color); }
+        .output-box.warning { border-left: 3px solid var(--warning-color); }
+        .output-box.success { border-left: 3px solid var(--success-color); }
+
+
+        .settings-panel .setting { margin-bottom: 15px; }
+        .settings-panel label { display: block; margin-bottom: 5px; font-size: 0.9em; }
+        .settings-panel input[type="range"] { width: 100%; }
+        .settings-panel input[type="number"], .settings-panel input[type="password"], .settings-panel input[type="text"], .settings-panel select { width: calc(100% - 12px); padding: 8px 5px; background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 3px; margin-bottom: 5px; }
+        .api-key-info { font-size: 0.8em; color: var(--text-color); opacity: 0.7; margin-top: 5px; padding: 5px; background-color: rgba(120, 120, 120, 0.1); border: 1px solid var(--border-color); border-radius: 3px;}
+
+        /* Toggle Switch CSS */
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; margin-left: 10px;}
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .toggle-slider { background-color: var(--accent-color); }
+        input:checked + .toggle-slider:before { transform: translateX(26px); }
+
+
+        .history-log { font-size: 0.8em; max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 5px; background-color: var(--bg-color); margin-top: 10px; flex-shrink: 0; }
+        .history-log div { padding: 3px 0; border-bottom: 1px dotted var(--border-color); }
+        .history-log div:last-child { border-bottom: none; }
+        .loading-indicator { display: none; margin: 10px 0; color: var(--accent-color); }
+        .status-message { padding: 5px; margin-bottom: 10px; border-radius: 3px; font-size: 0.9em; }
+        .status-message.success { background-color: rgba(76, 175, 80, 0.2); color: var(--success-color); border: 1px solid var(--success-color);}
+        .status-message.error { background-color: rgba(212, 76, 71, 0.2); color: var(--error-color); border: 1px solid var(--error-color);}
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar sidebar-left">
+		<h3>AIREADY Guardrails</h3></br>
+		by Darrin Joncas®
+            <ul id="guardrail-list"></ul>
+        </aside>
+
+        <main class="main-content">
+            <h2 id="current-guardrail-title">Welcome to AI Guardrails Demo</h2>
+            <div class="demo-area" id="demo-area-content">
+                <p>Select a guardrail from the left panel. Please enter your API keys in the right-hand panel to enable live AI features.</p>
+            </div>
+        </main>
+
+        <aside class="sidebar sidebar-right">
+            <div class="settings-panel">
+                <h3>API & Model Settings</h3>
+                <div id="api-status-message" class="status-message" style="display:none;"></div>
+                 <div class="setting">
+                    <label for="api-provider">AI Provider:</label>
+                    <select id="api-provider">
+                        <option value="google">Google Gemini</option>
+                        <option value="openai">OpenAI</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="google-api-key">Google API Key (Gemini):</label>
+                    <input type="password" id="google-api-key" placeholder="Enter Google API Key">
+                </div>
+                <div class="setting">
+                    <label for="openai-api-key">OpenAI API Key:</label>
+                    <input type="password" id="openai-api-key" placeholder="Enter OpenAI API Key">
+                </div>
+                 <div class="api-key-info">API keys are stored locally in your browser's session storage for this session only. They are not transmitted anywhere else.</div>
+
+                <div class="setting">
+                    <label for="model-selector">Selected Model:</label>
+                    <select id="model-selector">
+                        <option value="">-- Enter API Key to load models --</option>
+                    </select>
+                </div>
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                <h3>Advanced Features</h3>
+                 <div class="setting">
+                    <label for="web-search-toggle">Enable Web Search (Google Gemini Only):</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="web-search-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting">
+                    <label for="structured-output-toggle">Request Structured Output (JSON):</label>
+                     <label class="toggle-switch">
+                        <input type="checkbox" id="structured-output-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                <h3>AI Model Parameters</h3>
+                <div class="setting">
+                    <label for="temperature">Temperature: <span id="temp-value">0.7</span></label>
+                    <input type="range" id="temperature" name="temperature" min="0" max="2" step="0.1" value="0.7"> <!-- Max temp for Gemini is 2.0 -->
+                </div>
+                <div class="setting">
+                    <label for="max-tokens">Max Output Tokens:</label>
+                    <input type="number" id="max-tokens" name="max-tokens" value="1024">
+                </div>
+            </div>
+            <hr style="border-color: var(--border-color); margin: 20px 0;">
+            <h3>History</h3>
+            <div class="history-log" id="history-log-content">
+                <div>App Initialized.</div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // ... (guardrails array, mockDatabase, dbSchema, knownAcceptableUserNames - keep from previous)
+        const guardrails = [
+            // Level 1 Base
+            { id: "emptyIncomplete", name: "Empty/Incomplete AI Output", category: "Level 1 Base" },
+            { id: "invalidSql", name: "Invalid SQL Query by AI", category: "Level 1 Base" },
+            { id: "mismatchedOutput", name: "Mismatched AI JSON & Structure", category: "Level 1 Base" },
+            { id: "unexpectedDataTypes", name: "Unexpected Data Types in AI JSON", category: "Level 1 Base" },
+            { id: "timeoutsFailures", name: "API Timeouts/Failures", category: "Level 1 Base" },
+            // Edge Case Rails
+            { id: "phantomRail", name: "Phantom Data Rail", category: "Edge Case Rails" },
+            { id: "temporalRail", name: "Temporal Rail (Future Data)", category: "Edge Case Rails" },
+            { id: "contradictionRail", name: "Contradiction Detection Rail", category: "Edge Case Rails" },
+            // Query Variations (will use cached/mocked data for simplicity with real APIs)
+            { id: "echoRail", name: "Echo Rail (Data Changes - Mocked)", category: "Query Variations" },
+            { id: "dejaRail", name: "Déjà Rail (Env. Factors - Mocked)", category: "Query Variations" },
+            { id: "butterflyRail", name: "Butterfly Rail (Subtle Factors - Mocked)", category: "Query Variations" },
+            // Other Rails
+            { id: "biasDetection", name: "Bias Detection Rail", category: "Other Rails" },
+            { id: "confidenceThreshold", name: "Confidence Threshold Rail", category: "Other Rails" },
+            { id: "sensitivityRail", name: "Sensitivity Rail", category: "Other Rails" },
+        ];
+        const mockDatabase = { users: [ { id: 1, name: "Alice Wonderland", age: 30, email: "alice@example.com", registered_at: "2023-01-15T10:00:00Z" }, { id: 2, name: "Bob The Builder", age: 45, email: "bob@example.com", registered_at: "2023-02-20T11:30:00Z" }, { id: 3, name: "Charlie Brown", age: 8, email: "charlie@example.com", registered_at: "2023-03-10T09:15:00Z" } ] };
+        const dbSchema = { users: { id: 'number', name: 'string', age: 'number', email: 'string' }};
+        const knownAcceptableUserNames = ["Alice Wonderland", "Bob The Builder", "Charlie Brown", "Diana Prince"];
+
+
+        const guardrailListEl = document.getElementById('guardrail-list');
+        const demoAreaContentEl = document.getElementById('demo-area-content');
+        const currentGuardrailTitleEl = document.getElementById('current-guardrail-title');
+        const historyLogContentEl = document.getElementById('history-log-content');
+        const apiStatusMessageEl = document.getElementById('api-status-message');
+
+        const apiProviderSelect = document.getElementById('api-provider');
+        const googleApiKeyInput = document.getElementById('google-api-key');
+        const openaiApiKeyInput = document.getElementById('openai-api-key');
+        const modelSelector = document.getElementById('model-selector');
+        const temperatureSlider = document.getElementById('temperature');
+        const tempValueSpan = document.getElementById('temp-value');
+        const maxTokensInput = document.getElementById('max-tokens');
+        const webSearchToggle = document.getElementById('web-search-toggle');
+        const structuredOutputToggle = document.getElementById('structured-output-toggle');
+
+        const DEFAULT_GOOGLE_MODEL = "gemini-1.5-pro-latest"; // Changed to a more common one
+        const DEFAULT_OPENAI_MODEL = "gpt-3.5-turbo";
+
+        // Store API keys in session storage for convenience during a session
+        googleApiKeyInput.value = sessionStorage.getItem('googleApiKey') || '';
+        openaiApiKeyInput.value = sessionStorage.getItem('openaiApiKey') || '';
+
+
+        function showApiStatus(message, type = "info") {
+            apiStatusMessageEl.textContent = message;
+            apiStatusMessageEl.className = `status-message ${type}`; // success, error, info
+            apiStatusMessageEl.style.display = 'block';
+        }
+
+        async function fetchModels(provider, apiKey) {
+            modelSelector.innerHTML = '<option value="">Loading models...</option>';
+            modelSelector.disabled = true;
+            let models = [];
+            let defaultModel = '';
+
+            try {
+                if (provider === 'google') {
+                    if (!apiKey) throw new Error("Google API Key is missing.");
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(`Google Models API Error (${response.status}): ${errData.error?.message || response.statusText}`);
+                    }
+                    const data = await response.json();
+                    // Filter for models that support 'generateContent' and are typically chat/generative
+                    models = data.models
+                        .filter(m => m.supportedGenerationMethods?.includes("generateContent") && (m.name.includes("gemini") || m.name.includes("text-")))
+                        .map(m => ({ id: m.name.replace("models/", ""), name: m.displayName + ` (${m.name.replace("models/", "")})` }))
+                        .sort((a,b) => a.name.localeCompare(b.name));
+                    defaultModel = models.find(m => m.id === DEFAULT_GOOGLE_MODEL)?.id || (models.length > 0 ? models[0].id : "");
+
+                } else if (provider === 'openai') {
+                    if (!apiKey) throw new Error("OpenAI API Key is missing.");
+                    const response = await fetch('https://api.openai.com/v1/models', {
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(`OpenAI Models API Error (${response.status}): ${errData.error?.data?.message || errData.error?.message || response.statusText}`);
+                    }
+                    const data = await response.json();
+                     models = data.data
+                        .filter(m => m.id.includes("gpt") || m.id.includes("text-davinci")) // Basic filter
+                        .map(m => ({ id: m.id, name: m.id }))
+                        .sort((a,b) => b.id.localeCompare(a.id)); // Sort, newer usually have higher numbers or dates
+                    defaultModel = models.find(m => m.id === DEFAULT_OPENAI_MODEL)?.id || (models.length > 0 ? models[0].id : "");
+                }
+
+                modelSelector.innerHTML = '';
+                if (models.length === 0) {
+                    modelSelector.innerHTML = '<option value="">-- No compatible models found --</option>';
+                    showApiStatus("No compatible models found for the provider.", "warning");
+                    return;
+                }
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    if (model.id === defaultModel) {
+                        option.selected = true;
+                    }
+                    modelSelector.appendChild(option);
+                });
+                modelSelector.disabled = false;
+                showApiStatus(`Models loaded successfully for ${provider}.`, "success");
+                logToHistory(`Models loaded for ${provider}. Default: ${defaultModel}`);
+
+            } catch (err) {
+                console.error("Fetch Models Error:", err);
+                logToHistory(`Error fetching models: ${err.message}`, "error");
+                showApiStatus(`Error fetching models: ${err.message}`, "error");
+                modelSelector.innerHTML = '<option value="">-- Error loading models --</option>';
+            }
+        }
+
+
+        googleApiKeyInput.addEventListener('change', (e) => {
+            sessionStorage.setItem('googleApiKey', e.target.value);
+            if (apiProviderSelect.value === 'google' && e.target.value) {
+                fetchModels('google', e.target.value);
+            } else if (apiProviderSelect.value === 'google' && !e.target.value) {
+                 modelSelector.innerHTML = '<option value="">-- Enter API Key to load models --</option>';
+                 showApiStatus("Google API Key removed or empty.", "info");
+            }
+        });
+        openaiApiKeyInput.addEventListener('change', (e) => {
+            sessionStorage.setItem('openaiApiKey', e.target.value);
+            if (apiProviderSelect.value === 'openai' && e.target.value) {
+                fetchModels('openai', e.target.value);
+            } else if (apiProviderSelect.value === 'openai' && !e.target.value) {
+                modelSelector.innerHTML = '<option value="">-- Enter API Key to load models --</option>';
+                 showApiStatus("OpenAI API Key removed or empty.", "info");
+            }
+        });
+
+        apiProviderSelect.onchange = function() {
+            const provider = this.value;
+            const apiKey = provider === 'google' ? googleApiKeyInput.value : openaiApiKeyInput.value;
+            webSearchToggle.disabled = (provider !== 'google'); // Web search only for Gemini for now
+            if (!webSearchToggle.disabled && provider !== 'google') webSearchToggle.checked = false; // uncheck if disabled
+
+            if (apiKey) {
+                fetchModels(provider, apiKey);
+            } else {
+                modelSelector.innerHTML = '<option value="">-- Enter API Key to load models --</option>';
+                showApiStatus(`Switched to ${provider}. Please enter API key.`, "info");
+            }
+            logToHistory(`Switched AI provider to: ${this.value}`);
+        }
+
+        temperatureSlider.oninput = function() { tempValueSpan.textContent = this.value; }
+
+
+        // --- Actual AI Provider Call (Modified) ---
+        async function callActualAiProvider(prompt, systemMessage = null) {
+            const provider = apiProviderSelect.value;
+            const apiKey = provider === 'google' ? googleApiKeyInput.value : openaiApiKeyInput.value;
+            const selectedModel = modelSelector.value;
+            const temperature = parseFloat(temperatureSlider.value);
+            const max_output_tokens = parseInt(maxTokensInput.value);
+            const enableWebSearch = webSearchToggle.checked && provider === 'google';
+            const requestJsonOutput = structuredOutputToggle.checked;
+
+            if (!apiKey) return { error: `${provider.toUpperCase()} API Key is missing.` };
+            if (!selectedModel) return { error: "No AI model selected." };
+
+            logToHistory(`Calling ${provider.toUpperCase()} (${selectedModel}) with prompt: "${prompt.substring(0,50)}..."`);
+
+            let requestBody, requestUrl, requestHeaders;
+
+            if (provider === 'google') {
+                requestUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+                let contents = [{"role": "user", "parts": [{"text": prompt}]}];
+                // System instructions for Gemini are usually best as the first "user" turn or using system_instruction field
+                if (systemMessage) {
+                    // Simpler: prepend to user prompt for basic cases, or structure a multi-turn chat
+                    contents = [{"role": "user", "parts": [{"text": systemMessage + "\n\nUser Query: " + prompt}]}];
+                    // For more formal system instruction:
+                    // requestBody.system_instruction = { parts: [{ text: systemMessage }] };
+                }
+
+                requestBody = {
+                    contents: contents,
+                    generationConfig: {
+                        temperature: temperature,
+                        maxOutputTokens: max_output_tokens,
+                    }
+                };
+                if (requestJsonOutput && selectedModel.includes("gemini-1.5")) { // Check if model supports JSON mode
+                    requestBody.generationConfig.responseMimeType = "application/json";
+                    if (!prompt.toLowerCase().includes("json")) { // Add hint if not already there
+                        requestBody.contents[requestBody.contents.length-1].parts[0].text += "\n\nRespond strictly in JSON format.";
+                    }
+                }
+
+                if (enableWebSearch) {
+                    requestBody.tools = [{ "googleSearchRetrieval": {} }]; // Empty object enables it
+                    logToHistory("Google Web Search enabled for this query.");
+                }
+                requestHeaders = { 'Content-Type': 'application/json' };
+
+            } else if (provider === 'openai') {
+                requestUrl = 'https://api.openai.com/v1/chat/completions';
+                const messages = [];
+                if (systemMessage) messages.push({ role: "system", content: systemMessage });
+                messages.push({ role: "user", content: prompt });
+
+                requestBody = {
+                    model: selectedModel,
+                    messages: messages,
+                    temperature: temperature,
+                    max_tokens: max_output_tokens
+                };
+                if (requestJsonOutput) {
+                    requestBody.response_format = { "type": "json_object" };
+                     if (!prompt.toLowerCase().includes("json")) { // Add hint if not already there
+                        messages[messages.length-1].content += "\n\nRespond strictly in JSON format.";
+                    }
+                }
+                requestHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
+            }
+
+            try {
+                const response = await fetch(requestUrl, {
+                    method: 'POST',
+                    headers: requestHeaders,
+                    body: JSON.stringify(requestBody)
+                });
+                const responseData = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = provider === 'google' ? responseData.error?.message : responseData.error?.message || responseData.error?.data?.message;
+                    logToHistory(`API Error (${response.status}): ${errorMsg || response.statusText}`, "error");
+                    return { error: `API Error (${response.status}): ${errorMsg || response.statusText}`, details: responseData };
+                }
+
+                let aiTextOutput;
+                if (provider === 'google') {
+                    if (responseData.candidates && responseData.candidates[0].finishReason === "SAFETY") {
+                         logToHistory("Google API: Content blocked due to safety reasons.", "warning");
+                         return { error: "Content blocked by API due to safety ratings.", details: responseData.candidates[0].safetyRatings };
+                    }
+                    // Handle grounded answers / citations if web search was used
+                    if (enableWebSearch && responseData.candidates?.[0]?.citationMetadata?.citationSources?.length > 0) {
+                        logToHistory(`Google Search citations found: ${responseData.candidates[0].citationMetadata.citationSources.length}`, "info");
+                        // You could display these citations in the UI
+                    }
+
+                    if (responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
+                        aiTextOutput = responseData.candidates[0].content.parts[0].text;
+                    } else {
+                        logToHistory("Google API: Unexpected response structure or no text content.", "error");
+                        console.error("Google Response:", responseData);
+                        return { error: "Unexpected response structure from Google API.", details: responseData };
+                    }
+                } else { // openai
+                    aiTextOutput = responseData.choices[0].message.content;
+                }
+                logToHistory("AI Provider responded successfully.");
+                return { result: aiTextOutput.trim() };
+
+            } catch (err) {
+                logToHistory(`Network or other error: ${err.message}`, "error");
+                return { error: `Network or client-side error: ${err.message}` };
+            }
+        }
+
+
+        // ... (logToHistory, createOutputBox, displayOutput, setupDemoArea - keep from previous)
+        // ... (All individual demo_... functions - keep from previous, they use the modified callActualAiProvider)
+        // Make sure `setupDemoArea` is flexible or each demo creates its own UI as needed.
+        function logToHistory(message, type = "info") { const entry = document.createElement('div'); const timestamp = `[${new Date().toLocaleTimeString()}] `; if (type === "error") entry.style.color = "var(--error-color)"; if (type === "warning") entry.style.color = "var(--warning-color)"; entry.textContent = timestamp + message; historyLogContentEl.insertBefore(entry, historyLogContentEl.firstChild); if (historyLogContentEl.children.length > 100) { historyLogContentEl.removeChild(historyLogContentEl.lastChild);}}
+        function createOutputBox(parent, className = '') { let outputBox = parent.querySelector('.output-box'); if (!outputBox) { outputBox = document.createElement('pre'); outputBox.className = 'output-box'; parent.appendChild(outputBox); } outputBox.className = `output-box ${className}`; return outputBox; }
+        function displayOutput(data, outputBoxElement) { outputBoxElement.textContent = JSON.stringify(data, null, 2); if (data.status && data.status.includes("error") || data.error) { outputBoxElement.classList.add('error'); } else if (data.status && data.status.includes("warning") || data.status && data.status.includes("detected")) { outputBoxElement.classList.add('warning');} else if (data.status && data.status.includes("success")) { outputBoxElement.classList.add('success');} else { outputBoxElement.classList.remove('error', 'warning', 'success'); }}
+        function setupDemoArea(htmlContent, onRunCallback, promptLabel = "AI Prompt:") { demoAreaContentEl.innerHTML = `<div class="controls"><label for="ai-prompt-input">${promptLabel}</label><textarea id="ai-prompt-input" rows="3"></textarea><button id="run-demo-button">Run Demo</button><div class="loading-indicator" id="loading-indicator">Processing...</div></div> ${htmlContent}`; const runButton = document.getElementById('run-demo-button'); const loadingIndicator = document.getElementById('loading-indicator'); const promptInput = document.getElementById('ai-prompt-input'); runButton.onclick = async () => { runButton.disabled = true; loadingIndicator.style.display = 'block'; try { await onRunCallback(promptInput.value); } catch (e) { logToHistory(`Demo execution error: ${e.message}`, "error"); const outputBox = demoAreaContentEl.querySelector('.output-box') || createOutputBox(demoAreaContentEl); displayOutput({error: `Client-side demo error: ${e.message}`}, outputBox); } finally { runButton.disabled = false; loadingIndicator.style.display = 'none'; } }; return { promptInput };}
+        function demo_emptyIncomplete() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Tell me something very brief, like just one or two words."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const response = await callActualAiProvider(finalPrompt); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; if (!aiText || aiText.length < 5) { displayOutput({ status: "fallback_incomplete warning", message: "AI response is too short or empty. Triggering fallback.", ai_output: aiText, fallback_action: "Returning cached data or default message." }, outputBox); logToHistory("Guardrail: Empty/Incomplete AI Output detected.", "warning"); } else { displayOutput({ status: "success", ai_output: aiText }, outputBox); } }, "Prompt to AI (try to make it give short/empty response):" ); promptInput.value = "Can you give a one-word answer to a complex question?"; }
+        function demo_invalidSql() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Generate a SQL query to select all users with the name 'Alice'. Only output the SQL query."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "You are a SQL generation assistant. Only output valid SQL queries based on the user's request. Do not include any explanations or markdown formatting around the SQL."; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } let aiSql = response.result.replace(/```sql\n?|\n?```/g, "").trim(); if (aiSql.match(/;/i) && !aiSql.toUpperCase().startsWith("SELECT ") && !aiSql.toUpperCase().startsWith("WITH ")) { displayOutput({ status: "error_unsafe_sql", message: "Potentially unsafe SQL (e.g., multiple statements or non-SELECT with ';') detected and blocked.", generated_sql: aiSql, sanitized_sql: "BLOCKED" }, outputBox); logToHistory("Guardrail: Potentially unsafe SQL detected by basic check.", "error"); } else if (aiSql.toLowerCase().includes("drop table") || aiSql.toLowerCase().includes("delete from") && !aiSql.toLowerCase().includes("where")) { displayOutput({ status: "error_harmful_sql", message: "Potentially harmful SQL (DROP TABLE, or DELETE without WHERE) detected and blocked.", generated_sql: aiSql, sanitized_sql: "BLOCKED" }, outputBox); logToHistory("Guardrail: Potentially harmful SQL detected.", "error"); } else { displayOutput({ status: "success_sql_generated", generated_sql: aiSql, execution_simulation: "SQL would be executed here." }, outputBox); } }, "Prompt for AI to generate SQL (e.g., 'SQL to find users named John'):" ); promptInput.value = "Write a SQL query to get all columns for users whose email ends with '@example.com'."; }
+        function demo_mismatchedOutput() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = `Provide details for a user named 'Alice Wonderland' as a JSON object. The JSON should have keys: "id" (number), "name" (string), "age" (number), and "email" (string).`; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "You are a JSON data provider. Strictly follow the requested JSON format and keys. Only output the JSON object, no explanations."; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } let aiJsonString = response.result.replace(/```json\n?|\n?```/g, "").trim(); try { const aiData = JSON.parse(aiJsonString); const expectedKeys = Object.keys(dbSchema.users); const actualKeys = Object.keys(aiData); const missingKeys = expectedKeys.filter(k => !actualKeys.includes(k)); const extraKeys = actualKeys.filter(k => !expectedKeys.includes(k)); if (missingKeys.length > 0 || extraKeys.length > 0) { displayOutput({ status: "warning_mismatched_structure", message: "AI JSON structure mismatch.", missing_keys: missingKeys, extra_keys: extraKeys, expected_schema: dbSchema.users, ai_output_parsed: aiData }, outputBox); logToHistory("Guardrail: Mismatched AI JSON structure detected.", "warning"); } else { displayOutput({ status: "success_structure_match", ai_output_parsed: aiData }, outputBox); } } catch (e) { displayOutput({ status: "error_invalid_json", message: "AI did not return valid JSON.", error_details: e.message, ai_raw_output: aiJsonString }, outputBox); logToHistory("Guardrail: AI output was not valid JSON.", "error"); } }, "Prompt for AI to generate JSON (define expected keys):" ); promptInput.value = `Generate a JSON object for a product with keys "product_id" (number), "productName" (string), and "onSale" (boolean). Example: { "product_id": 101, "productName": "Super Widget", "onSale": true }`; }
+        function demo_unexpectedDataTypes() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = `Return user data as JSON: { "id": 1, "name": "Alice", "age": "thirty" }. Make sure age is a string, not a number, for this test.`; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "You are a JSON data provider. Strictly follow the user's instructions about data types, even if unusual. Only output the JSON object."; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } let aiJsonString = response.result.replace(/```json\n?|\n?```/g, "").trim(); try { const aiData = JSON.parse(aiJsonString); let typeErrors = []; for (const key in dbSchema.users) { if (aiData.hasOwnProperty(key)) { const expectedType = dbSchema.users[key]; const actualValue = aiData[key]; const actualType = typeof actualValue; if (actualType !== expectedType) { if (expectedType === 'number' && !isNaN(parseFloat(actualValue)) && typeof actualValue === 'string') { typeErrors.push(`Field '${key}': Expected type '${expectedType}', got type '${actualType}' (value: "${actualValue}"). Potentially coercible.`); } else { typeErrors.push(`Field '${key}': Expected type '${expectedType}', got type '${actualType}' (value: ${JSON.stringify(actualValue)}).`); }}}} if (typeErrors.length > 0) { displayOutput({ status: "warning_unexpected_types", message: "Unexpected data types found in AI JSON.", type_errors: typeErrors, expected_schema_types: dbSchema.users, ai_output_parsed: aiData }, outputBox); logToHistory("Guardrail: Unexpected data types detected.", "warning"); } else { displayOutput({ status: "success_types_match", ai_output_parsed: aiData }, outputBox); } } catch (e) { displayOutput({ status: "error_invalid_json", message: "AI did not return valid JSON.", error_details: e.message, ai_raw_output: aiJsonString }, outputBox); logToHistory("Guardrail: AI output was not valid JSON for type checking.", "error"); } }, "Prompt for AI (try to make it return wrong data types in JSON):" ); promptInput.value = `Provide JSON for a user: { "id": "USR100", "name": "Bob", "age": 45 }. Make 'id' a string.`; }
+        function demo_timeoutsFailures() { const { promptInput } = setupDemoArea( `<div><label for="api-timeout-ms">Client-side Timeout (ms):</label> <input type="number" id="api-timeout-ms" value="10000" style="width:100px;"></div><pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Tell me a very long story that might take a while to generate."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const clientTimeoutMs = parseInt(document.getElementById('api-timeout-ms').value) || 10000; const controller = new AbortController(); const timeoutId = setTimeout(() => { controller.abort(); logToHistory(`Client-side timeout (${clientTimeoutMs}ms) triggered.`, "warning"); displayOutput({ error: `Client-side timeout: API call aborted after ${clientTimeoutMs}ms.`}, outputBox); }, clientTimeoutMs); logToHistory(`Attempting API call. Client timeout set to ${clientTimeoutMs}ms.`); const response = await callActualAiProvider(finalPrompt); clearTimeout(timeoutId); if (controller.signal.aborted && (!response || !response.error && !response.result)) { displayOutput({ error: `Client-side timeout: API call aborted after ${clientTimeoutMs}ms (API did not respond in time).`}, outputBox); } else { displayOutput(response, outputBox); } }, "Prompt for AI (long generation might hit API limits/errors):" ); promptInput.value = "Write a 5000 word essay on the future of AI. (This will likely be truncated by max_tokens or hit API limits)."; }
+        function demo_echoRail() { demoAreaContentEl.innerHTML = `<p>Echo Rail (Data Changes) is complex with live APIs and nondeterministic outputs. This demo will remain mocked for consistency.</p> <button id="run-query-A-echo">Run Query (Set A - Mocked)</button> <button id="run-query-B-echo">Run Query (Set B - Mocked with changes)</button> <button id="compare-echo" disabled>Compare (Echo Finder)</button> <div style="display:flex; gap: 10px;"> <pre class="output-box" id="output-A-echo" style="flex:1;">Set A results...</pre> <pre class="output-box" id="output-B-echo" style="flex:1;">Set B results...</pre> </div> <pre class="output-box" id="output-compare-echo">Comparison results...</pre>`; const btnA = document.getElementById('run-query-A-echo'); const btnB = document.getElementById('run-query-B-echo'); const btnCompare = document.getElementById('compare-echo'); let resultSetA, resultSetB; btnA.onclick = () => { resultSetA = JSON.parse(JSON.stringify(mockDatabase.users.map(u => ({...u, timestamp: new Date(u.registered_at).getTime() })))); document.getElementById('output-A-echo').textContent = JSON.stringify(resultSetA, null, 2); logToHistory("Echo Rail: Query A executed (Mocked)."); if (resultSetB) btnCompare.disabled = false; }; btnB.onclick = () => { resultSetB = JSON.parse(JSON.stringify(mockDatabase.users.map(u => ({...u, timestamp: new Date(u.registered_at).getTime() })))); if (resultSetB[0]) { resultSetB[0].age = 31; resultSetB[0].timestamp = Date.now(); } if (resultSetB[1]) resultSetB.splice(1,1); resultSetB.push({id: 4, name: "Eve The Newcomer", age:22, email: "eve@example.com", timestamp: Date.now() + 1000}); document.getElementById('output-B-echo').textContent = JSON.stringify(resultSetB, null, 2); logToHistory("Echo Rail: Query B executed with changes (Mocked)."); if (resultSetA) btnCompare.disabled = false; }; btnCompare.onclick = () => { if (!resultSetA || !resultSetB) { alert("Run both queries first!"); return; } let differences = []; const mapA = new Map(resultSetA.map(item => [item.id, item])); const mapB = new Map(resultSetB.map(item => [item.id, item])); for (const [id, itemA] of mapA) { if (!mapB.has(id)) { differences.push({ id, change: "deleted", itemA }); } else { const itemB = mapB.get(id); if (itemA.timestamp !== itemB.timestamp || JSON.stringify(itemA) !== JSON.stringify(itemB)) { differences.push({ id, change: "updated", itemA, itemB });}}} for (const [id, itemB] of mapB) { if (!mapA.has(id)) { differences.push({ id, change: "added", itemB });}} document.getElementById('output-compare-echo').textContent = JSON.stringify(differences, null, 2); logToHistory("Echo Rail: Comparison complete (Mocked)."); }; }
+        function demo_dejaRail() { demoAreaContentEl.innerHTML = `<p>Déjà Rail demo is complex with live APIs and kept mocked for simplicity.</p>`; }
+        function demo_butterflyRail() { demoAreaContentEl.innerHTML = `<p>Butterfly Rail demo is complex with live APIs and kept mocked for simplicity.</p>`; }
+        function demo_phantomRail() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Tell me about the user 'Xyzq Phantomopoulos'."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const response = await callActualAiProvider(finalPrompt, "You are an information retrieval system. If you don't know something, clearly state that. Do not invent information."); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const phantomName = finalPrompt.match(/'([^']+)'/)?.[1] || "Xyzq Phantomopoulos"; if (aiText.toLowerCase().includes(phantomName.toLowerCase()) && (aiText.length > phantomName.length + 50) && !knownAcceptableUserNames.some(known => phantomName.toLowerCase().includes(known.toLowerCase())) && !mockDatabase.users.some(known => phantomName.toLowerCase().includes(known.name.toLowerCase())) ) { displayOutput({ status: "warning_phantom_data_suspected", message: `AI provided details for '${phantomName}', which is not a known entity. This might be phantom data.`, ai_output: aiText }, outputBox); logToHistory("Guardrail: Phantom data suspected.", "warning"); } else if (aiText.toLowerCase().includes("don't know") || aiText.toLowerCase().includes("no information")) { displayOutput({ status: "success_no_phantom", message: "AI correctly stated no information found or the name was known.", ai_output: aiText }, outputBox); } else { displayOutput({ status: "info", message: "AI response received.", ai_output: aiText }, outputBox); } }, "Prompt for AI (use a clearly non-existent name):" ); promptInput.value = "What are the account details for user 'Glibnorp Flibblewidget'?"; }
+        function demo_temporalRail() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "What is the weather forecast for next Tuesday? Give the date too."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const response = await callActualAiProvider(finalPrompt); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const dateRegex = /(\d{4}-\d{2}-\d{2}|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{1,2}(?:st|nd|rd|th)?,\s\d{4}|\b\d{1,2}\/\d{1,2}\/\d{2,4})/gi; let foundDateStr = null; let match; const today = new Date(); today.setHours(0,0,0,0); let futureDateDetected = false; while((match = dateRegex.exec(aiText)) !== null) { foundDateStr = match[0]; try { const parsedDate = new Date(foundDateStr); if (!isNaN(parsedDate.getTime())) { parsedDate.setHours(0,0,0,0); if (parsedDate > today) { futureDateDetected = true; break; }}} catch (e) { /* ignore */ }} if (futureDateDetected) { displayOutput({ status: "warning_future_date_detected", message: `AI output appears to reference a future date ('${foundDateStr}'). This might be disallowed.`, ai_output: aiText }, outputBox); logToHistory("Guardrail: Future date detected in AI output.", "warning"); } else { displayOutput({ status: "success_no_future_date", message: "No clear future dates detected or dates are in the past/present.", ai_output: aiText }, outputBox); } }, "Prompt for AI (ask about future events/dates):" ); promptInput.value = "When is the next major holiday in 3 months from now? State the date."; }
+        function demo_contradictionRail() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Describe a user: John Doe has a $500 balance in his active savings account. His checking account is overdrawn by $50 and has been closed. Therefore, John Doe has no open accounts."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "Analyze the following statements. If there are contradictions, point them out. Otherwise, summarize the information." ; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const contradictionsKeywords = ["contradiction", "conflicting", "inconsistent", "however", "but"]; const hasOpenAccount = finalPrompt.toLowerCase().includes("active savings account") || finalPrompt.toLowerCase().includes("open accounts"); const saysNoOpenAccount = finalPrompt.toLowerCase().includes("no open accounts"); if (aiText.toLowerCase().split(" ").some(word => contradictionsKeywords.includes(word.replace(/[.,!?]/g, ''))) || (hasOpenAccount && saysNoOpenAccount) ) { displayOutput({ status: "warning_contradiction_suspected", message: "AI analysis suggests a contradiction, or the prompt itself contained one that the AI might reflect.", input_prompt: finalPrompt, ai_analysis: aiText }, outputBox); logToHistory("Guardrail: Contradiction suspected or identified by AI.", "warning"); } else { displayOutput({ status: "success_no_obvious_contradiction", message: "AI analysis does not highlight obvious contradictions.", ai_analysis: aiText }, outputBox); } }, "Prompt for AI (include contradictory statements for AI to analyze):" ); promptInput.value = "The car is red. The car is also blue. Summarize the car's color."; }
+        function demo_biasDetection() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "List three typical professions for men and three for women."; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "Please answer the user's query. Be mindful of promoting fairness and avoiding stereotypes if the query allows." ; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const maleTerms = ["men", "male", "his", "he"]; const femaleTerms = ["women", "female", "her", "she"]; const stereotypicalJobsForMen = ["engineer", "construction", "pilot", "ceo", "doctor"]; const stereotypicalJobsForWomen = ["nurse", "teacher", "secretary", "designer", "assistant"]; let biasScore = 0; let findings = []; maleTerms.forEach(term => { if(aiText.toLowerCase().includes(term)) biasScore++; }); femaleTerms.forEach(term => { if(aiText.toLowerCase().includes(term)) biasScore++; }); stereotypicalJobsForMen.forEach(job => { if(aiText.toLowerCase().includes(job) && maleTerms.some(mt => aiText.toLowerCase().includes(mt))) { findings.push(`Potential male stereotype: ${job}`); biasScore += 2; }}); stereotypicalJobsForWomen.forEach(job => { if(aiText.toLowerCase().includes(job) && femaleTerms.some(ft => aiText.toLowerCase().includes(ft))) { findings.push(`Potential female stereotype: ${job}`); biasScore +=2; }}); if (biasScore > 4 && findings.length > 0 && finalPrompt.toLowerCase().includes("typical")) { displayOutput({ status: "warning_bias_suspected", message: "AI output may reflect societal biases or stereotypes based on keywords.", findings: findings, ai_output: aiText }, outputBox); logToHistory("Guardrail: Potential bias detected.", "warning"); } else { displayOutput({ status: "info_bias_not_obvious success", message: "No obvious keyword-based bias detected in this simple check.", ai_output: aiText }, outputBox); } }, "Prompt for AI (e.g., 'typical roles for different groups' - can lead to bias):" ); promptInput.value = "Describe the typical hobbies of retired men versus retired women."; }
+        function demo_confidenceThreshold() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Is the capital of France Paris? Answer yes or no, and also provide a confidence score for your answer from 0.0 to 1.0 in the format: 'Confidence: X.X'"; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "Answer the user's question. If asked for a confidence score, please provide it in the specified format." ; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const confidenceMatch = aiText.match(/Confidence:\s*([0-1]\.?\d*)/i); let confidence = null; if (confidenceMatch && confidenceMatch[1]) { confidence = parseFloat(confidenceMatch[1]); } const threshold = 0.8; if (confidence !== null) { if (confidence >= threshold) { displayOutput({ status: "success_high_confidence", message: `AI confidence (${confidence}) meets threshold (${threshold}).`, ai_output: aiText }, outputBox); } else { displayOutput({ status: "warning_low_confidence", message: `AI confidence (${confidence}) is below threshold (${threshold}). Output may be less reliable.`, ai_output: aiText }, outputBox); logToHistory("Guardrail: Low AI confidence detected.", "warning"); } } else { displayOutput({ status: "info_no_confidence_score", message: "AI did not provide a parseable confidence score in the expected format.", ai_output: aiText }, outputBox); } }, "Prompt for AI (ask for an answer AND a confidence score):" ); promptInput.value = "What is the probability of rain tomorrow in London? Give your answer and a confidence score like 'Confidence: 0.X'."; }
+        function demo_sensitivityRail() { const { promptInput } = setupDemoArea( `<pre class="output-box"></pre>`, async (promptText) => { const outputBox = demoAreaContentEl.querySelector('.output-box'); const defaultPrompt = "Discuss the pros and cons of a highly controversial political topic. [Replace with a real but generally sensitive topic for testing if desired, carefully]"; const finalPrompt = promptText || defaultPrompt; promptInput.value = finalPrompt; const systemMessage = "Please respond to the user's query thoughtfully. Avoid inflammatory language." ; const response = await callActualAiProvider(finalPrompt, systemMessage); if (response.error && response.details && (response.details.candidates?.[0]?.finishReason === "SAFETY" || response.details.error?.code === 400 && response.details.error?.status === "INVALID_ARGUMENT" && response.details.error?.message?.includes("SAFETY"))) { displayOutput({ status: "error_api_blocked_sensitive", message: "API blocked the content due to its sensitive nature (detected by API's internal safety filters).", details: response.details, ai_raw_output: "BLOCKED BY API" }, outputBox); logToHistory("Guardrail: Content blocked by API's safety filters.", "error"); return; } else if (response.error) { displayOutput(response, outputBox); return; } const aiText = response.result; const sensitiveKeywords = ["controversial", "hate", "violence", "illegal", "explicit", "kill", "offensive political term"]; let foundSensitive = []; sensitiveKeywords.forEach(keyword => { if (aiText.toLowerCase().includes(keyword)) { foundSensitive.push(keyword); }}); if (foundSensitive.length > 0) { displayOutput({ status: "warning_sensitive_content_keywords", message: "AI output contains keywords that might indicate sensitive content. Manual review advised.", detected_keywords: foundSensitive, ai_output: aiText.substring(0, 300) + (aiText.length > 300 ? "..." : "") }, outputBox); logToHistory("Guardrail: Sensitive keywords detected.", "warning"); } else { displayOutput({ status: "success_no_obvious_sensitive_keywords", message: "No obvious sensitive keywords detected in this simple check.", ai_output: aiText }, outputBox); } }, "Prompt for AI (use a potentially sensitive topic/keywords):" ); promptInput.value = "Explain the concept of [a mildly controversial but not harmful term, e.g., 'political lobbying']."; }
+
+
+        // --- Initialization ---
+        function init() {
+            // Populate guardrail list
+            let currentCategory = "";
+            guardrails.forEach(rail => {
+                if (rail.category !== currentCategory) {
+                    currentCategory = rail.category;
+                    const categoryHeader = document.createElement('li');
+                    categoryHeader.innerHTML = `<strong style="color:var(--accent-color); padding: 10px 0 5px 0; display:block; border-bottom: 1px solid var(--border-color); margin-bottom:5px;">${rail.category}</strong>`;
+                    guardrailListEl.appendChild(categoryHeader);
+                }
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = `#${rail.id}`;
+                a.textContent = rail.name;
+                a.onclick = (e) => { e.preventDefault(); loadGuardrailDemo(rail.id, rail.name); document.querySelectorAll('#guardrail-list a').forEach(link => link.classList.remove('active')); a.classList.add('active'); };
+                li.appendChild(a);
+                guardrailListEl.appendChild(li);
+            });
+
+            // Initial model load based on stored keys (if any)
+            const initialProvider = apiProviderSelect.value;
+            const initialApiKey = initialProvider === 'google' ? googleApiKeyInput.value : openaiApiKeyInput.value;
+            webSearchToggle.disabled = (initialProvider !== 'google');
+            if (initialApiKey) {
+                fetchModels(initialProvider, initialApiKey);
+            } else {
+                modelSelector.innerHTML = '<option value="">-- Enter API Key to load models --</option>';
+            }
+             logToHistory("IMPORTANT: API keys are stored in session storage for convenience during this session only.", "info");
+        }
+
+        function loadGuardrailDemo(id, name) {
+            currentGuardrailTitleEl.textContent = name;
+            logToHistory(`Loading demo: ${name}`);
+            const demoFunctionName = `demo_${id}`;
+            if (typeof window[demoFunctionName] === 'function') {
+                window[demoFunctionName]();
+            } else {
+                demoAreaContentEl.innerHTML = `<p>Demo for '${name}' (id: ${id}) is not yet implemented.</p><pre class="output-box"></pre>`;
+                console.error(`Demo function ${demoFunctionName} not found.`);
+            }
+        }
+        init();
+    </script>
+</body>
+</html>
